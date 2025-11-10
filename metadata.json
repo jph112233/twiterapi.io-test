@@ -1,0 +1,5 @@
+{
+  "name": "Twiterapi.io test",
+  "description": "An application to fetch and display user tweets using the twitterapi.io service.",
+  "requestFramePermissions": []
+}
