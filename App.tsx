@@ -33,7 +33,7 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const TweetCard: React.FC<{ tweet: Tweet; depth?: number }> = ({ tweet, depth = 0 }) => {
+const TweetCard: React.FC<{ tweet: Tweet; depth?: number; isIncludedTweet?: boolean }> = ({ tweet, depth = 0, isIncludedTweet = false }) => {
     const author = tweet.author || { name: 'Unknown User', userName: 'unknown', profilePicture: ''};
     const isReply = tweet.isReply || !!tweet.inReplyToId;
     
@@ -57,6 +57,12 @@ const TweetCard: React.FC<{ tweet: Tweet; depth?: number }> = ({ tweet, depth = 
             className={`${bgColor} backdrop-blur-sm rounded-xl p-4 shadow-lg border ${borderColor} animate-fade-in relative`}
             style={{ marginLeft }}
         >
+            {/* Show indicator for included/replied-to tweets */}
+            {isIncludedTweet && (
+                <div className="absolute top-2 right-2 bg-blue-500/20 text-blue-400 text-xs px-2 py-1 rounded border border-blue-500/30">
+                    Included Tweet
+                </div>
+            )}
             {/* Show thread connector line for replies */}
             {depth > 0 && (
                 <div 
@@ -368,9 +374,10 @@ const App: React.FC = () => {
 
     // Recursive function to render a tweet and its children
     const renderTweetThread = (tweet: Tweet, depth: number = 0): React.ReactNode => {
+        const isIncludedTweet = (tweet as any)._source === 'includes' || (tweet as any)._source === 'replied_to';
         return (
             <div key={tweet.id} className="relative">
-                <TweetCard tweet={tweet} depth={depth} />
+                <TweetCard tweet={tweet} depth={depth} isIncludedTweet={isIncludedTweet} />
                 {tweet.children && tweet.children.length > 0 && (
                     <div className="mt-2 space-y-2">
                         {tweet.children.map(child => renderTweetThread(child, depth + 1))}
@@ -455,8 +462,14 @@ const App: React.FC = () => {
                 <div className="space-y-6">
                     {/* Render conversation groups - organize each group into threads, ordered oldest to newest */}
                     {sortedConversations.map(([conversationId, conversationTweets]) => {
+                        // Sort tweets within conversation by createdAt (oldest first) before organizing into threads
+                        // This ensures included/replied-to tweets appear before the tweets that reference them
+                        const sortedConversationTweets = [...conversationTweets].sort((a, b) => {
+                            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                        });
+                        
                         // Organize tweets within this conversation into threads
-                        const organizedThreads = organizeTweetsIntoThreads(conversationTweets);
+                        const organizedThreads = organizeTweetsIntoThreads(sortedConversationTweets);
                         
                         // Sort threads within conversation by root tweet's createdAt (oldest first)
                         const sortedThreads = organizedThreads.sort((a, b) => {
